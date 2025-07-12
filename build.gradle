@@ -1,0 +1,89 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.3'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'nu.studer.jooq' version '8.1'
+    id 'org.flywaydb.flyway' version '9.21.1'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-jooq'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    runtimeOnly 'org.postgresql:postgresql'
+    jooqGenerator 'org.postgresql:postgresql'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+flyway {
+    url = 'jdbc:postgresql://localhost:5432/purchase_db'
+    user = 'postgres'
+    password = 'pass'
+    locations = ['filesystem:src/main/resources/db/migration']
+}
+
+jooq {
+    version = '3.17.18'
+    configurations {
+        main {
+            generationTool {
+                onError = 'LOG'
+
+                jdbc {
+                    driver = 'org.postgresql.Driver'
+                    url = 'jdbc:postgresql://localhost:5432/purchase_db'
+                    user = 'postgres'
+                    password = 'pass'
+                }
+                generator {
+                    database {
+                        name = 'org.jooq.meta.postgres.PostgresDatabase'
+                        includes = '.*'
+                        schemata {
+                            schema { inputSchema = 'purchase' }
+                        }
+                    }
+                    generate {
+                        pojos = true
+                        daos = false
+                        records = true
+                    }
+                    target {
+                        packageName = 'com.example.jooq'
+                        directory = 'src/main/java/com/example/jooq'
+                    }
+                }
+            }
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir "$buildDir/generated-src/jooq/main"
+        }
+    }
+}
+
+tasks.named('generateJooq') {
+    dependsOn tasks.named('flywayMigrate')
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
